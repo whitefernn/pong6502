@@ -1,0 +1,688 @@
+;  _____
+; |  _  |___  _ _
+; |  ___|   \| ' \
+; |  | |  |  | || |
+; |__|  \___/|_||_|
+
+; Move left paddle: W S
+; Move right paddle: P L
+
+define paddleLL         $00 ; low byte for left paddle pos
+define paddleLH         $01 ; high byte for left paddle pos
+define paddleLBody      $02 ; start of paddle left byte pairs
+define paddleRL         $10 ; low byte for right paddle pos
+define paddleRH         $11 ; high byte for right paddle pos
+define paddleRBody      $12 ; start of paddle right byte pairs
+define paddeLDirection  $20 ; left paddle direction (do we need?)
+define paddleRDirection $21 ; right paddle direction (do we need?)
+define paddleLegnth     $22 ; in bytes
+define paddleLScore     $23 ; score for the left paddle
+define paddleRScore     $24 ; score for the right paddle
+define scoreToDraw      $25 ; the score to draw (to pass into loop)
+define scoreOffset      $26 ; the offset for the score to draw on the screen
+define scoreScreenPosL  $27 ; the low byte for the scores screen pos
+define scoreScreenPosH  $28 ; the high byte for the scroes screen pos
+
+; Directions
+define movingUpL    1 ; 0001
+define movingDownL  2 ; 0010
+define movingUpR    4 ; 0100
+define movingDownR  8 ; 1000
+
+; ASCII values of keys controlling the paddles
+define ASCII_w $77
+define ASCII_s $73
+define ASCII_p $70
+define ASCII_l $6c
+
+; System variables
+define sysLastKey $ff
+
+    jsr init
+    jsr loop
+
+init: 
+    jsr initPaddles
+    jsr initScoreBoard
+    jsr generateBallPosition
+    jsr generateBallTragectory
+    rts
+
+initPaddles:
+    ; reset directions for paddles
+    lda #0
+    sta paddeLDirection
+    sta paddleRDirection
+
+    ; set paddle length to 8 (4 segments)
+    lda #8
+    sta paddleLegnth
+
+    ; set left and right paddle hight bytes 
+    ; will span 03 row and 04 row
+    lda #$03
+    sta paddleLH
+    sta paddleRH
+    ldx #$02
+    sta paddleLH,x
+    sta paddleRH,x
+    lda #$04
+    ldx #$04
+    sta paddleLH,x
+    sta paddleRH,x
+    ldx #$06
+    sta paddleLH,x
+    sta paddleRH,x
+    ldx #$08
+    sta paddleLH,x
+    sta paddleRH,x
+
+    ; set left and right paddle low bytes
+    lda #$c0
+    ldy #$df
+    sta paddleLL
+    sty paddleRL
+    lda #$e0
+    ldy #$ff
+    ldx #$02
+    sta paddleLL,x
+    sty paddleRL,x
+    lda #$00
+    ldy #$1f
+    ldx #$04
+    sta paddleLL,x
+    sty paddleRL,x
+    lda #$20
+    ldy #$3f
+    ldx #$06
+    sta paddleLL,x
+    sty paddleRL,x
+    lda #$40
+    ldy #$5f
+    ldx #$08
+    sta paddleLL,x
+    sty paddleRL,x
+
+    rts
+
+initScoreBoard:
+    ; Reset the score to 0:0, offsets and screen positions
+    lda #0
+    sta paddleLScore
+    sta paddleRScore
+    sta scoreToDraw
+    sta scoreOffset
+
+    lda #$02
+    sta scoreScreenPosH
+
+    lda #$25
+    sta scoreScreenPosL
+
+    ldx #0
+    ldy #8
+    dey
+    ; loop 8 times to draw the sides of the Scoreboard
+    
+scoreSideLoop:
+    lda #5
+    sta $0200,x ; color wall
+    sta $021f,x ; color wall
+
+    ; add 20 to the offset
+    txa
+    clc
+    adc #$20
+    tax
+
+    ; decrement and loop until at the end
+    dey
+    bne scoreSideLoop
+
+    ; setup for bottom loop
+    ; loop 32 times to draw the bottom of the scoreboard
+    ldx #0
+    ldy #33
+    dey
+
+scoreBottomLoop:
+    lda #5
+    sta $02e0,x ; draw the bottom pixel
+    inx
+
+    dey
+    bne scoreBottomLoop
+
+    ; draw the middle colon for the scores
+    lda #1
+    sta $022f
+    sta $0230
+    sta $024f
+    sta $0250
+    sta $028f
+    sta $0290
+    sta $02af
+    sta $02b0
+
+    rts
+
+
+generateBallPosition:
+    rts
+
+generateBallTragectory:
+    rts
+
+loop:
+    jsr readKeys
+    jsr drawPaddles
+    jsr drawBall
+    jsr drawScore
+    jmp loop
+
+readKeys:
+    lda sysLastKey
+    cmp #ASCII_w
+    beq goUpL
+    cmp #ASCII_s
+    beq goDownL
+    cmp #ASCII_p
+    beq goUpR
+    cmp #ASCII_l
+    beq goDownR
+    rts
+goUpL:
+    jmp upL
+goDownL:
+    jmp downL
+goUpR:
+    jmp upR
+goDownR:
+    jmp downR
+
+
+upL:
+    ; Clear the bottom of the paddle
+    ldx #6
+    lda #0
+    sta (paddleLBody,x)
+
+    ; Store the tail location
+    lda paddleLBody,x
+    ldx #8
+    sta paddleLBody,x
+    ldx #7
+    lda paddleLBody,x
+    ldx #9
+    sta paddleLBody,x
+
+    ; Prep for body update
+    ldx paddleLegnth
+    dex
+
+upLoopL: ; shift the body pieces up
+    lda paddleLL,x
+    sta paddleLBody,x
+    dex
+    bpl upLoopL
+
+    ; move the head up
+    lda paddleLL
+    sec
+    sbc #$20
+    sta paddleLL
+    bcc upupL
+    jmp clearKey
+
+upupL: ; head needs to cross memory row bound
+    dec paddleLH
+    lda #$2
+    cmp paddleLH
+    beq ceilingLeft ; hit ceiling cant move up
+    jmp clearKey
+
+ceilingLeft:
+    ldx #0
+
+undoUpL:
+    lda paddleLBody,x
+    sta paddleLL,x
+    inx
+    cpx #9
+    bne undoUpL
+
+    ; redraw the tail
+    lda #1
+    ldx paddleLegnth
+    dex
+    sta (paddleLBody,x)
+    jmp clearKey
+
+downL:
+    ; Clear the top of the paddle
+    ldx #0
+    lda #0
+    sta (paddleLL,x)
+
+    ; Store the head location
+    lda paddleLL,x
+    ldx #8
+    sta paddleLBody,x
+    ldx #1
+    lda paddleLL,x
+    ldx #9
+    sta paddleLBody,x
+
+    ; Prep for body update
+    ldx #0
+    
+downLoopL: ; shift the body pieces down
+    lda paddleLBody,x
+    sta paddleLL,x
+    inx
+    cpx paddleLegnth
+    bne downLoopL
+
+    ; move the tail down
+    lda paddleLL,x
+    clc
+    adc #$20
+    sta paddleLL,x
+    bcs downdownL
+    jmp clearKey
+
+downdownL:
+    inc paddleLH,x
+    lda #6
+    cmp paddleLH,x
+    beq floorLeft ; hit floor cant move down
+    jmp clearKey
+
+floorLeft:
+    ; setup loop
+    ldx paddleLegnth
+    dex
+
+undoDownL:
+    lda paddleLL,x
+    sta paddleLBody,x
+    dex
+    bpl undoDownL
+
+    ; set head
+    ldx #8
+    lda paddleLBody,x
+    ldx #0
+    sta paddleLL,x
+    ldx #9
+    lda paddleLBody,x
+    ldx #1
+    sta paddleLL,x
+
+    ; redraw the head
+    lda #1
+    ldx #0
+    sta (paddleLL,x)
+    jmp clearKey
+
+upR:
+    ; Clear the bottom of the paddle
+    ldx #6
+    lda #0
+    sta (paddleRBody,x)
+
+    ; Store the tail location
+    lda paddleRBody,x
+    ldx #8
+    sta paddleRBody,x
+    ldx #7
+    lda paddleRBody,x
+    ldx #9
+    sta paddleRBody,x
+
+    ; Prep for body update
+    ldx paddleLegnth
+    dex
+
+upLoopR: ; shift the body pieces up
+    lda paddleRL,x
+    sta paddleRBody,x
+    dex
+    bpl upLoopR
+
+    ; move the head up
+    lda paddleRL
+    sec
+    sbc #$20
+    sta paddleRL
+    bcc upupR
+    jmp clearKey
+
+upupR: ; head needs to cross memory row bound
+    dec paddleRH
+    lda #$2
+    cmp paddleRH
+    beq ceilingRight ; hit ceiling cant move up
+    jmp clearKey
+
+ceilingRight:
+    ldx #0
+
+undoUpR:
+    lda paddleRBody,x
+    sta paddleRL,x
+    inx
+    cpx #9
+    bne undoUpR
+
+    ; redraw the tail
+    lda #1
+    ldx paddleLegnth
+    dex
+    sta (paddleRBody,x)
+    jmp clearKey
+
+downR:
+    ; Clear the top of the paddle
+    ldx #0
+    lda #0
+    sta (paddleRL,x)
+
+    ; Store the head location
+    lda paddleRL,x
+    ldx #8
+    sta paddleRBody,x
+    ldx #1
+    lda paddleRL,x
+    ldx #9
+    sta paddleRBody,x
+
+    ; Prep for body update
+    ldx #0
+    
+downLoopR: ; shift the body pieces down
+    lda paddleRBody,x
+    sta paddleRL,x
+    inx
+    cpx paddleLegnth
+    bne downLoopR
+
+    ; move the tail down
+    lda paddleRL,x
+    clc
+    adc #$20
+    sta paddleRL,x
+    bcs downdownR
+    jmp clearKey
+
+downdownR:
+    inc paddleRH,x
+    lda #6
+    cmp paddleRH,x
+    beq floorRight ; hit floor cant move down
+    jmp clearKey
+
+floorRight:
+    ; setup loop
+    ldx paddleLegnth
+    dex
+
+undoDownR:
+    lda paddleRL,x
+    sta paddleRBody,x
+    dex
+    bpl undoDownR
+
+    ; set head
+    ldx #8
+    lda paddleRBody,x
+    ldx #0
+    sta paddleRL,x
+    ldx #9
+    lda paddleRBody,x
+    ldx #1
+    sta paddleRL,x
+
+    ; redraw the head
+    lda #1
+    ldx #0
+    sta (paddleRL,x)
+    jmp clearKey
+clearKey:
+    lda #0
+    sta sysLastKey
+    rts
+
+drawPaddles:
+    ldy #5
+    lda #1
+    ldx #$00
+
+drawLoop:
+    sta (paddleLL,x)
+    sta (paddleRL,x)
+    inx
+    inx
+    dey
+    bne drawLoop
+    rts
+
+drawBall:
+    rts
+
+drawScore:
+    lda paddleLScore
+    sta scoreToDraw
+    lda #0
+    sta scoreOffset
+    jsr drawScoreLoop
+
+    lda paddleRScore
+    sta scoreToDraw
+    lda #15
+    sta scoreOffset
+    jsr drawScoreLoop
+
+    rts
+
+
+drawScoreLoop:
+    lda scoreToDraw
+    sec
+    sbc #10
+    bpl setTensPlaceOne ; score is >= 10
+    bmi setTensPlaceZero ; score is < 10
+
+setTensPlaceOne:
+    sec ; set carry so drawTensPlace draws a 1
+    jsr drawTensPlace
+    jmp onesCheck
+
+setTensPlaceZero:
+    clc ; clear carry so drawTensPlace draws a 0
+    jsr drawTensPlace
+
+onesCheck:
+    lda scoreOffset
+    clc
+    adc #4 ; location of the ones place
+    sta scoreOffset
+
+    ; check the leftover after sub 10 for ones
+    lda scoreToDraw
+    sec
+    sbc #10
+    beq setOnesPlaceZero ; score is == 10
+    bpl setOnesPlaceNum ; score is > 10
+    ; or just take the value of score if the sub of 10 is negative
+    lda scoreToDraw
+    jsr drawOnesPlace
+    rts
+
+setOnesPlaceZero:
+    lda #0
+    jsr drawOnesPlace
+    rts
+
+setOnesPlaceNum:
+    jsr drawOnesPlace
+    rts
+
+drawTensPlace:
+    bcc zeroTens
+    bcs oneTens
+
+zeroTens:
+    jsr drawZero
+    rts
+
+oneTens:
+    jsr drawOne
+    rts
+
+drawOnesPlace:
+    cmp #0
+    beq zeroOnes
+    cmp #1
+    beq oneOnes
+    cmp #2
+    beq twoOnes
+    cmp #3
+    beq threeOnes
+    cmp #4
+    beq fourOnes
+    cmp #5
+    beq fiveOnes
+    cmp #6
+    beq sixOnes
+    cmp #7
+    beq sevenOnes
+    cmp #8
+    beq eightOnes
+    cmp #9
+    beq nineOnes
+
+zeroOnes:
+    jsr drawZero
+    rts
+    
+oneOnes:
+    jsr drawOne
+    rts
+    
+twoOnes:
+    jsr drawTwo
+    rts
+    
+threeOnes:
+    jsr drawThree
+    rts
+    
+fourOnes:
+    jsr drawFour
+    rts
+    
+fiveOnes:
+    jsr drawFive
+    rts
+    
+sixOnes:
+    jsr drawSix
+    rts
+    
+sevenOnes:
+    jsr drawSeven
+    rts
+    
+eightOnes:
+    jsr drawEight
+    rts
+    
+nineOnes:
+    jsr drawNine
+    rts
+    
+
+drawZero:
+    ; draw top of 0
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+    jsr 3x1
+
+    ; draw left of 0
+    lda scoreOffset
+    clc
+    adc #$45
+    sta scoreScreenPosL
+    jsr 1x3
+
+    ; draw right of 0
+    lda scoreOffset
+    clc
+    adc #$47
+    sta scoreScreenPosL
+    jsr 1x3
+
+    ; draw bottom of 0
+    lda scoreOffset
+    clc
+    adc #$a5
+    sta scoreScreenPosL
+    jsr 3x1
+    rts
+
+drawOne:
+    rts
+
+drawTwo:
+    rts
+
+drawThree:
+    rts
+
+drawFour:
+    rts
+
+drawFive:
+    rts
+
+drawSix:
+    rts
+    
+drawSeven:
+    rts
+    
+drawEight:
+    rts
+    
+drawNine:
+    rts
+    
+3x1: ; draw pixels 3 across
+    ldy #3
+    dey
+
+3across:
+    lda #1
+    sta (scoreScreenPosL),y
+    dey
+    bpl 3across
+    rts
+
+1x3: ; draw pixels 3 down
+    ldx #3
+    dex
+    ldy #0
+
+3down:
+    lda #1
+    sta (scoreScreenPosL),y
+    tya
+    clc
+    adc #$20
+    tay
+    dex
+    bpl 3down
+    rts
