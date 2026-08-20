@@ -22,6 +22,9 @@ define scoreToDraw      $25 ; the score to draw (to pass into loop)
 define scoreOffset      $26 ; the offset for the score to draw on the screen
 define scoreScreenPosL  $27 ; the low byte for the scores screen pos
 define scoreScreenPosH  $28 ; the high byte for the scroes screen pos
+define ballL            $30 ; the low byte for the ball pos
+define ballH            $31 ; the high byte for the ball pos
+define ballDir          $32 ; the direction the ball is moving
 
 ; Directions
 define movingUpL    1 ; 0001
@@ -168,6 +171,19 @@ scoreBottomLoop:
 
 
 generateBallPosition:
+    ; put ball in middle of play
+    lda #$30
+    sta ballL
+    lda #$04
+    sta ballH
+
+    ; load a new random number from 1 to 2
+    lda sysRandom
+    and #$01 ; mask out lowest bit
+    clc
+    adc #2
+    sta ballDir
+
     rts
 
 generateBallTragectory:
@@ -468,6 +484,9 @@ drawLoop:
     rts
 
 drawBall:
+    lda #1
+    ldx #0
+    sta (ballL,x)
     rts
 
 drawScore:
@@ -609,74 +628,412 @@ drawZero:
     clc
     adc #$25
     sta scoreScreenPosL
-    jsr 3x1
+
+    ldy #3
+    jsr yx1
 
     ; draw left of 0
     lda scoreOffset
     clc
     adc #$45
     sta scoreScreenPosL
-    jsr 1x3
+
+    ldx #3
+    jsr 1xx
 
     ; draw right of 0
     lda scoreOffset
     clc
     adc #$47
     sta scoreScreenPosL
-    jsr 1x3
+
+    ldx #3
+    jsr 1xx
 
     ; draw bottom of 0
     lda scoreOffset
     clc
     adc #$a5
     sta scoreScreenPosL
-    jsr 3x1
+
+    ldy #3
+    jsr yx1
     rts
 
 drawOne:
+    ; draw top of 1
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldy #2
+    jsr yx1
+
+    ; draw stem of 1
+    lda scoreOffset
+    clc
+    adc #$46
+    sta scoreScreenPosL
+
+    ldx #4
+    jsr 1xx
+
+    ; draw base of 1
+    lda scoreOffset
+    clc
+    adc #$a5
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
     rts
 
 drawTwo:
+    ; draw top of 2
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
+    ; draw right of 2
+    lda scoreOffset
+    clc
+    adc #$47
+    sta scoreScreenPosL
+
+    ldx #2
+    jsr 1xx
+
+    ; draw mid of 2
+    lda scoreOffset
+    clc
+    adc #$66
+    sta scoreScreenPosL
+
+    ldy #1
+    jsr yx1
+
+    ; draw left of 2
+    lda scoreOffset
+    clc
+    adc #$65
+    sta scoreScreenPosL
+
+    ldx #2
+    jsr 1xx
+
+    ; draw base of 2
+    lda scoreOffset
+    clc
+    adc #$a5
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
     rts
 
 drawThree:
+    ; draw top of 3
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
+    ; draw mid of 3
+    lda scoreOffset
+    clc
+    adc #$65
+    sta scoreScreenPosL
+
+    ldy #2
+    jsr yx1
+
+    ; draw right of 3
+    lda scoreOffset
+    clc
+    adc #$47
+    sta scoreScreenPosL
+
+    ldx #3
+    jsr 1xx
+
+    ; draw base of 3
+    lda scoreOffset
+    clc
+    adc #$a5
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
     rts
 
 drawFour:
+    ; draw left of 4
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldx #3
+    jsr 1xx
+
+    ; draw mid of 4
+    lda scoreOffset
+    clc
+    adc #$66
+    sta scoreScreenPosL
+
+    ldy #1
+    jsr yx1
+
+    ; draw right of 4
+    lda scoreOffset
+    clc
+    adc #$27
+    sta scoreScreenPosL
+
+    ldx #5
+    jsr 1xx
+
     rts
 
 drawFive:
+    ; draw top of 5
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
+    ; draw left of 5
+    lda scoreOffset
+    clc
+    adc #$45
+    sta scoreScreenPosL
+
+    ldx #2
+    jsr 1xx
+
+    ; draw mid of 5
+    lda scoreOffset
+    clc
+    adc #$66
+    sta scoreScreenPosL
+
+    ldy #2
+    jsr yx1
+
+    ; draw right of 5
+    lda scoreOffset
+    clc
+    adc #$87
+    sta scoreScreenPosL
+
+    ldx #2
+    jsr 1xx
+
+    ; draw base of 5
+    lda scoreOffset
+    clc
+    adc #$a5
+    sta scoreScreenPosL
+
+    ldy #2
+    jsr yx1
+
     rts
 
 drawSix:
+    ; draw top of 6
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
+    ; draw left of 6
+    lda scoreOffset
+    clc
+    adc #$45
+    sta scoreScreenPosL
+
+    ldx #3
+    jsr 1xx
+
+    ; draw mid of 6
+    lda scoreOffset
+    clc
+    adc #$66
+    sta scoreScreenPosL
+
+    ldy #2
+    jsr yx1
+
+    ; draw right of 6
+    lda scoreOffset
+    clc
+    adc #$87
+    sta scoreScreenPosL
+
+    ldx #1
+    jsr 1xx
+
+    ; draw base of 5
+    lda scoreOffset
+    clc
+    adc #$a5
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
     rts
     
 drawSeven:
+    ; draw top of 7
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
+    ; draw right of 7
+    lda scoreOffset
+    clc
+    adc #$47
+    sta scoreScreenPosL
+
+    ldx #4
+    jsr 1xx
+
     rts
     
 drawEight:
+    ; draw top of 8
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
+    ; draw left of 8
+    lda scoreOffset
+    clc
+    adc #$45
+    sta scoreScreenPosL
+
+    ldx #3
+    jsr 1xx
+
+    ; draw mid of 8
+    lda scoreOffset
+    clc
+    adc #$66
+    sta scoreScreenPosL
+
+    ldy #1
+    jsr yx1
+
+    ; draw right of 8
+    lda scoreOffset
+    clc
+    adc #$47
+    sta scoreScreenPosL
+
+    ldx #3
+    jsr 1xx
+
+    ; draw base of 8
+    lda scoreOffset
+    clc
+    adc #$a5
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
     rts
     
 drawNine:
+    ; draw top of 9
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
+    ; draw left of 9
+    lda scoreOffset
+    clc
+    adc #$45
+    sta scoreScreenPosL
+
+    ldx #2
+    jsr 1xx
+
+    ; draw mid of 9
+    lda scoreOffset
+    clc
+    adc #$66
+    sta scoreScreenPosL
+
+    ldy #1
+    jsr yx1
+
+    ; draw right of 9
+    lda scoreOffset
+    clc
+    adc #$47
+    sta scoreScreenPosL
+
+    ldx #4
+    jsr 1xx
+
+    ; draw base of 9
+    lda scoreOffset
+    clc
+    adc #$a5
+    sta scoreScreenPosL
+
+    ldy #3
+    jsr yx1
+
     rts
     
-3x1: ; draw pixels 3 across
-    ldy #3
+yx1: ; draw pixels y across
     dey
 
-3across:
+yacross:
     lda #1
     sta (scoreScreenPosL),y
     dey
-    bpl 3across
+    bpl yacross
     rts
 
-1x3: ; draw pixels 3 down
-    ldx #3
+1xx: ; draw pixels x down
     dex
     ldy #0
 
-3down:
+xdown:
     lda #1
     sta (scoreScreenPosL),y
     tya
@@ -684,5 +1041,5 @@ drawNine:
     adc #$20
     tay
     dex
-    bpl 3down
+    bpl xdown
     rts
