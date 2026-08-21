@@ -24,13 +24,23 @@ define scoreScreenPosL  $27 ; the low byte for the scores screen pos
 define scoreScreenPosH  $28 ; the high byte for the scroes screen pos
 define ballL            $30 ; the low byte for the ball pos
 define ballH            $31 ; the high byte for the ball pos
-define ballDir          $32 ; the direction the ball is moving
+define ballLat          $32 ; the lateral direction the ball is moving
+define ballVert         $33 ; the vertical direction the ball is moving
 
-; Directions
+; Paddle Directions
 define movingUpL    1 ; 0001
 define movingDownL  2 ; 0010
 define movingUpR    4 ; 0100
 define movingDownR  8 ; 1000
+
+; Ball Lateral Directions
+define left     1
+define right    2
+
+; Ball Vertical Directions
+define up       1
+define down     2
+define neutral  0
 
 ; ASCII values of keys controlling the paddles
 define ASCII_w $77
@@ -47,8 +57,7 @@ define sysLastKey $ff
 init: 
     jsr initPaddles
     jsr initScoreBoard
-    jsr generateBallPosition
-    jsr generateBallTragectory
+    jsr initBall
     rts
 
 initPaddles:
@@ -170,7 +179,7 @@ scoreBottomLoop:
     rts
 
 
-generateBallPosition:
+initBall:
     ; put ball in middle of play
     lda #$30
     sta ballL
@@ -182,19 +191,53 @@ generateBallPosition:
     and #$01 ; mask out lowest bit
     clc
     adc #2
-    sta ballDir
+    sta ballLat
 
-    rts
+    lda neutral
+    sta ballVert
 
-generateBallTragectory:
     rts
 
 loop:
     jsr readKeys
+    jsr checkCollision
     jsr drawPaddles
     jsr drawBall
     jsr drawScore
+    jsr updateBall
     jmp loop
+
+updateBall:
+    ; Check directions
+        ; move ball direction
+    ; check collision with walls
+        ; left or right collisions
+            ; point to player
+            ; reset paddles and ball positions
+        ; up or down collisions
+            ; bounce ball
+    rts
+
+checkCollision:
+    ; Check collision left paddle
+        ; move back a pixel
+        ; opposite ball lateral
+        ; Top of paddle
+            ; up ball vertical
+        ; Mid of paddle
+            ; neutral ball lateral
+        ; Bottom of paddle
+            ; down ball vertical
+    ; Check collision right paddle
+        ; move back a pixel
+        ; opposite ball lateral
+        ; Top of paddle
+            ; up ball vertical
+        ; Mid of paddle
+            ; neutral ball lateral
+        ; Bottom of paddle
+            ; down ball vertical
+    rts
 
 readKeys:
     lda sysLastKey
