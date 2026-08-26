@@ -208,14 +208,118 @@ loop:
     jmp loop
 
 updateBall:
-    ; Check directions
-        ; move ball direction
-    ; check collision with walls
-        ; left or right collisions
-            ; point to player
-            ; reset paddles and ball positions
-        ; up or down collisions
-            ; bounce ball
+    ; Clear ball pos
+    lda #0
+    ldx #0
+    sta (ballL,x)
+    ; Check directions and move ball pos that direction
+
+    lda ballVert
+    cmp up
+    beq shiftUp
+    cmp down
+    beq shiftDown
+
+    jmp checkBallLat ; no vertical movement
+
+shiftUp:
+    jsr moveBallUp
+    jmp checkBallLat
+shiftDown:
+    jsr moveBallDown
+
+
+checkBallLat:
+    lda ballLat
+    cmp left
+    beq shiftLeft
+    cmp right
+    beq shiftRight
+
+shiftLeft:
+    jsr moveBallLeft
+    rts
+shiftRight:
+    jsr moveBallRight
+    rts
+
+moveBallLeft:
+    dec ballL
+    lda ballL
+    and #$1f ; do i need to and then compare? Cant i just do 1?
+    cmp #$1f
+    beq collisionLeft
+    rts
+collisionLeft:
+    sec ; mark that player 1 scored
+    jsr pointToPlayer
+    rts
+
+moveBallRight:
+    inc ballL
+    lda #$1f
+    bit ballL
+    beq collisionRight
+    rts
+collisionRight:
+    clc ; mark that player 0 scored
+    jsr pointToPlayer
+    rts
+
+pointToPlayer:
+    ; check the carry and allocate point to that player
+    ; reset paddles and ball positions
+    rts
+
+moveBallUp:
+    lda ballL
+    sec
+    sbc #$20
+    sta ballL
+    bcc upup
+    rts
+upup:
+    dec ballH
+    lda #$2
+    cmp ballH
+    beq collisionTop
+    rts
+collisionTop:
+    ; undo move and change vert to down
+    inc ballH
+    lda ballL
+    clc
+    adc #$20
+    sta ballL
+
+    lda down
+    sta ballVert
+    rts
+
+
+moveBallDown:
+    lda ballL
+    clc
+    adc #$20
+    sta ballL
+    bcs downdown
+    rts
+downdown:
+    inc ballH
+    lda #$6
+    cmp ballH
+    beq collisionBottom
+    rts
+collisionBottom:
+    ; undo move and change vert to up
+    dec ballH
+    lda ballL
+    sec
+    sbc #$20
+    sta ballL
+
+    lda up
+    sta ballVert
     rts
 
 checkCollision:
