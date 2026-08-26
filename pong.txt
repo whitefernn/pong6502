@@ -22,10 +22,13 @@ define scoreToDraw      $25 ; the score to draw (to pass into loop)
 define scoreOffset      $26 ; the offset for the score to draw on the screen
 define scoreScreenPosL  $27 ; the low byte for the scores screen pos
 define scoreScreenPosH  $28 ; the high byte for the scroes screen pos
+define colorToDraw      $29 ; the color to draw a pixel of
 define ballL            $30 ; the low byte for the ball pos
 define ballH            $31 ; the high byte for the ball pos
-define ballLat          $32 ; the lateral direction the ball is moving
-define ballVert         $33 ; the vertical direction the ball is moving
+define oldBallL         $32 ; the low byte of the ball pos before a move
+define oldBallH         $33 ; the high byte of the ball pos before a move
+define ballLat          $34 ; the lateral direction the ball is moving
+define ballVert         $35 ; the vertical direction the ball is moving
 
 ; Paddle Directions
 define movingUpL    1 ; 0001
@@ -57,6 +60,7 @@ define sysLastKey $ff
 init: 
     jsr initPaddles
     jsr initScoreBoard
+    jsr drawScore
     jsr initBall
     rts
 
@@ -180,6 +184,11 @@ scoreBottomLoop:
 
 
 initBall:
+    ; reset old ball position
+    lda #$06
+    sta oldBallL
+    sta oldBallH
+
     ; put ball in middle of play
     lda #$30
     sta ballL
@@ -190,10 +199,11 @@ initBall:
     lda sysRandom
     and #$01 ; mask out lowest bit
     clc
-    adc #2
+    adc #$00
+    lda #1
     sta ballLat
 
-    lda neutral
+    lda #0
     sta ballVert
 
     rts
@@ -203,15 +213,16 @@ loop:
     jsr checkCollision
     jsr drawPaddles
     jsr drawBall
-    jsr drawScore
     jsr updateBall
+    jsr spinWheels
     jmp loop
 
 updateBall:
-    ; Clear ball pos
-    lda #0
-    ldx #0
-    sta (ballL,x)
+    lda ballL
+    sta oldBallL
+    lda ballH
+    sta oldBallH
+
     ; Check directions and move ball pos that direction
 
     lda ballVert
@@ -251,8 +262,8 @@ moveBallLeft:
     beq collisionLeft
     rts
 collisionLeft:
-    sec ; mark that player 1 scored
-    jsr pointToPlayer
+    sec ; mark that paddle R scored
+    jsr pointToPaddle
     rts
 
 moveBallRight:
@@ -262,13 +273,49 @@ moveBallRight:
     beq collisionRight
     rts
 collisionRight:
-    clc ; mark that player 0 scored
-    jsr pointToPlayer
+    clc ; mark that paddle L scored
+    jsr pointToPaddle
     rts
 
-pointToPlayer:
-    ; check the carry and allocate point to that player
-    ; reset paddles and ball positions
+pointToPaddle:
+    ; check the carry and allocate point to that paddle
+    bcs incrementScoreR ; paddle L scored
+    bcc incrementScoreL ; player R scored
+
+incrementScoreL:
+    inc paddleLScore
+    jmp resetPaddles
+
+incrementScoreR:
+    inc paddleRScore
+
+resetPaddles:
+    jsr clearPixels
+    jsr initPaddles
+    jsr initBall
+    jsr drawScore
+
+    rts
+
+clearPixels:
+    ; erase old pos for ball
+    lda #0
+    ldx #0
+
+    sta (oldBallL,x)
+
+    ; erase old pos for paddles
+    ldy #5
+    lda #0
+    ldx #$00
+
+clearLoop:
+    sta (paddleLL,x)
+    sta (paddleRL,x)
+    inx
+    inx
+    dey
+    bne clearLoop
     rts
 
 moveBallUp:
@@ -291,6 +338,9 @@ collisionTop:
     clc
     adc #$20
     sta ballL
+    lda #$06
+    sta oldBallL
+    sta oldBallH
 
     lda down
     sta ballVert
@@ -317,6 +367,9 @@ collisionBottom:
     sec
     sbc #$20
     sta ballL
+    lda #$06
+    sta oldBallL
+    sta oldBallH
 
     lda up
     sta ballVert
@@ -631,6 +684,11 @@ drawLoop:
     rts
 
 drawBall:
+    ; erase old pos
+    lda #0
+    ldx #0
+    sta (oldBallL,x)
+
     lda #1
     ldx #0
     sta (ballL,x)
@@ -651,6 +709,32 @@ drawScore:
 
     rts
 
+resetDigit: ; reset the pixels to black
+    lda #0
+    sta colorToDraw
+    lda scoreOffset
+    clc
+    adc #$25
+    sta scoreScreenPosL
+    ldx #5
+    jsr 1xx
+    lda scoreOffset
+    clc
+    adc #$26
+    sta scoreScreenPosL
+    ldx #5
+    jsr 1xx
+    lda scoreOffset
+    clc
+    adc #$27
+    sta scoreScreenPosL
+    ldx #5
+    jsr 1xx
+
+    ; reset color to white
+    lda #1
+    sta colorToDraw
+    rts
 
 drawScoreLoop:
     lda scoreToDraw
@@ -673,6 +757,8 @@ onesCheck:
     clc
     adc #4 ; location of the ones place
     sta scoreOffset
+
+    jsr resetDigit ; wipe pixels for digit
 
     ; check the leftover after sub 10 for ones
     lda scoreToDraw
@@ -699,10 +785,12 @@ drawTensPlace:
     bcs oneTens
 
 zeroTens:
+    jsr resetDigit ; wipe pixels for digit
     jsr drawZero
     rts
 
 oneTens:
+    jsr resetDigit ; wipe pixels for digit
     jsr drawOne
     rts
 
@@ -1170,7 +1258,7 @@ yx1: ; draw pixels y across
     dey
 
 yacross:
-    lda #1
+    lda colorToDraw
     sta (scoreScreenPosL),y
     dey
     bpl yacross
@@ -1181,7 +1269,7 @@ yacross:
     ldy #0
 
 xdown:
-    lda #1
+    lda colorToDraw
     sta (scoreScreenPosL),y
     tya
     clc
@@ -1190,3 +1278,12 @@ xdown:
     dex
     bpl xdown
     rts
+
+spinWheels:
+  ldx #0
+spinloop:
+  nop
+  nop
+  dex
+  bne spinloop
+  rts
