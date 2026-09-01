@@ -15,7 +15,7 @@ define paddleRH         $11 ; high byte for right paddle pos
 define paddleRBody      $12 ; start of paddle right byte pairs
 define paddeLDirection  $20 ; left paddle direction (do we need?)
 define paddleRDirection $21 ; right paddle direction (do we need?)
-define paddleLegnth     $22 ; in bytes
+define paddleLength     $22 ; in bytes
 define paddleLScore     $23 ; score for the left paddle
 define paddleRScore     $24 ; score for the right paddle
 define scoreToDraw      $25 ; the score to draw (to pass into loop)
@@ -74,7 +74,7 @@ initPaddles:
 
     ; set paddle length to 8 (4 segments)
     lda #8
-    sta paddleLegnth
+    sta paddleLength
 
     ; set left and right paddle hight bytes 
     ; will span 03 row and 04 row
@@ -212,10 +212,10 @@ initBall:
 
 loop:
     jsr readKeys
-    jsr checkCollision
     jsr drawPaddles
     jsr drawBall
     jsr updateBall
+    jsr checkCollision
     jsr spinWheels
     jmp loop
 
@@ -399,7 +399,7 @@ collisionTop:
     sta oldBallH
 
     ; Switch ball trajectory to down
-    lda down
+    lda #2
     sta ballVert
     rts
 
@@ -435,29 +435,127 @@ collisionBottom:
     sta oldBallH
 
     ; Switch ball trajectory to up
-    lda up
+    lda #1
     sta ballVert
     rts
 
 checkCollision:
     ; Check collision left paddle
-        ; move back a pixel
-        ; opposite ball lateral
-        ; Top of paddle
-            ; up ball vertical
-        ; Mid of paddle
-            ; neutral ball lateral
-        ; Bottom of paddle
-            ; down ball vertical
+    ldx #0
+    ldy #5 ; paddleLength
+
+paddleLCollisionLoop:
+    lda ballL
+    cmp paddleLL,x
+    beq collidedLeftPaddleLow
+    inx
+    inx
+    dey
+    cpy #0
+    beq finishLeftCheck
+    jmp paddleLCollisionLoop
+
+collidedLeftPaddleLow:
+    lda ballH
+    cmp paddleLH,x
+    beq collidedLeftPaddle
+    jmp paddleLCollisionLoop
+
+collidedLeftPaddle:
+    ; move ball back to prev space
+    lda oldBallL
+    sta ballL
+    lda oldBallH
+    sta ballH
+    
+    lda #$06
+    sta oldBallL
+    sta oldBallH
+
+    ; opposite ball lateral
+    lda #2 ; right
+    sta ballLat
+
+    ; Hit top of paddle
+    cpy #5
+    beq addUpVertL
+    ; Hit bottom of paddle
+    cpy #1
+    beq addDownVertL
+
+    lda #0
+    sta ballVert
+    rts
+
+addUpVertL:
+    lda #1
+    sta ballVert
+    rts
+
+addDownVertL:
+    lda #2
+    sta ballVert
+    rts
+
+finishLeftCheck:
     ; Check collision right paddle
-        ; move back a pixel
-        ; opposite ball lateral
-        ; Top of paddle
-            ; up ball vertical
-        ; Mid of paddle
-            ; neutral ball lateral
-        ; Bottom of paddle
-            ; down ball vertical
+    ldx #0
+    ldy #5 ; paddleLength
+
+paddleRCollisionLoop:
+    lda ballL
+    cmp paddleRL,x
+    beq collidedRightPaddleLow
+    inx
+    inx
+    dey
+    cpy #0
+    beq finishCollisionCheck
+    jmp paddleRCollisionLoop
+
+collidedRightPaddleLow:
+    lda ballH
+    cmp paddleRH,x
+    beq collidedRightPaddle
+    jmp paddleRCollisionLoop
+
+collidedRightPaddle:
+    ; move ball back to prev space
+    lda oldBallL
+    sta ballL
+    lda oldBallH
+    sta ballH
+    
+    lda #$06
+    sta oldBallL
+    sta oldBallH
+
+    ; opposite ball lateral
+    lda #1 ; left
+    sta ballLat
+
+    ; Hit top of paddle
+    cpy #5
+    beq addUpVertR
+    ; Hit bottom of paddle
+    cpy #1
+    beq addDownVertR
+
+    lda #0
+    sta ballVert
+    rts
+
+addUpVertR:
+    lda #1
+    sta ballVert
+    rts
+
+addDownVertR:
+    lda #2
+    sta ballVert
+    rts
+
+finishCollisionCheck:
     rts
 
 readKeys:
@@ -497,7 +595,7 @@ upL:
     sta paddleLBody,x
 
     ; Prep for body update
-    ldx paddleLegnth
+    ldx paddleLength
     dex
 
 upLoopL: ; shift the body pieces up
@@ -533,7 +631,7 @@ undoUpL:
 
     ; redraw the tail
     lda #1
-    ldx paddleLegnth
+    ldx paddleLength
     dex
     sta (paddleLBody,x)
     jmp clearKey
@@ -560,7 +658,7 @@ downLoopL: ; shift the body pieces down
     lda paddleLBody,x
     sta paddleLL,x
     inx
-    cpx paddleLegnth
+    cpx paddleLength
     bne downLoopL
 
     ; move the tail down
@@ -580,7 +678,7 @@ downdownL:
 
 floorLeft:
     ; setup loop
-    ldx paddleLegnth
+    ldx paddleLength
     dex
 
 undoDownL:
@@ -621,7 +719,7 @@ upR:
     sta paddleRBody,x
 
     ; Prep for body update
-    ldx paddleLegnth
+    ldx paddleLength
     dex
 
 upLoopR: ; shift the body pieces up
@@ -657,7 +755,7 @@ undoUpR:
 
     ; redraw the tail
     lda #1
-    ldx paddleLegnth
+    ldx paddleLength
     dex
     sta (paddleRBody,x)
     jmp clearKey
@@ -684,7 +782,7 @@ downLoopR: ; shift the body pieces down
     lda paddleRBody,x
     sta paddleRL,x
     inx
-    cpx paddleLegnth
+    cpx paddleLength
     bne downLoopR
 
     ; move the tail down
@@ -704,7 +802,7 @@ downdownR:
 
 floorRight:
     ; setup loop
-    ldx paddleLegnth
+    ldx paddleLength
     dex
 
 undoDownR:
