@@ -31,19 +31,19 @@ define ballLat          $34 ; the lateral direction the ball is moving
 define ballVert         $35 ; the vertical direction the ball is moving
 
 ; Paddle Directions
-define movingUpL    1 ; 0001
-define movingDownL  2 ; 0010
-define movingUpR    4 ; 0100
-define movingDownR  8 ; 1000
+define movingUpL    #1 ; 0001
+define movingDownL  #2 ; 0010
+define movingUpR    #4 ; 0100
+define movingDownR  #8 ; 1000
 
 ; Ball Lateral Directions
-define left     1
-define right    2
+define left     #1
+define right    #2
 
 ; Ball Vertical Directions
-define up       1
-define down     2
-define neutral  0
+define up       #1
+define down     #2
+define neutral  #0
 
 ; ASCII values of keys controlling the paddles
 define ASCII_w $77
@@ -218,6 +218,7 @@ loop:
     jmp loop
 
 updateBall:
+    ; Save the balls current position
     lda ballL
     sta oldBallL
     lda ballH
@@ -225,13 +226,17 @@ updateBall:
 
     ; Check directions and move ball pos that direction
 
+    ; Move ball up 1
     lda ballVert
     cmp up
     beq shiftUp
+
+    ; Move ball down 2
     cmp down
     beq shiftDown
 
-    jmp checkBallLat ; no vertical movement
+    ; Ball has no vertical movement 0
+    jmp checkBallLat
 
 shiftUp:
     jsr moveBallUp
@@ -241,9 +246,13 @@ shiftDown:
 
 
 checkBallLat:
+
+    ; Move ball left 1
     lda ballLat
     cmp left
     beq shiftLeft
+
+    ; Move ball right 2
     cmp right
     beq shiftRight
 
@@ -256,8 +265,10 @@ shiftRight:
 
 moveBallLeft:
     dec ballL
+
+    ; Check if we wrapped around $00 -> $1f
     lda ballL
-    and #$1f ; do i need to and then compare? Cant i just do 1?
+    and #$1f
     cmp #$1f
     beq collisionLeft
     rts
@@ -268,6 +279,8 @@ collisionLeft:
 
 moveBallRight:
     inc ballL
+
+    ; Check ball wrapped from $xf -> $00
     lda #$1f
     bit ballL
     beq collisionRight
@@ -279,8 +292,8 @@ collisionRight:
 
 pointToPaddle:
     ; check the carry and allocate point to that paddle
-    bcs incrementScoreR ; paddle L scored
-    bcc incrementScoreL ; player R scored
+    bcs incrementScoreR ; paddle R scored
+    bcc incrementScoreL ; player L scored
 
 incrementScoreL:
     inc paddleLScore
@@ -307,7 +320,7 @@ clearPixels:
     ; erase old pos for paddles
     ldy #5
     lda #0
-    ldx #$00
+    ldx #0
 
 clearLoop:
     sta (paddleLL,x)
@@ -319,14 +332,18 @@ clearLoop:
     rts
 
 moveBallUp:
+
+    ; Move ball up screenspace by subtracting $20
     lda ballL
     sec
     sbc #$20
     sta ballL
-    bcc upup
+    bcc upup ; Carry clear when wrapping from 00 -> e0
     rts
 upup:
     dec ballH
+
+    ; See if we hit the bottom of the scoreboard $02e0-$02ff
     lda #$2
     cmp ballH
     beq collisionTop
@@ -338,24 +355,31 @@ collisionTop:
     clc
     adc #$20
     sta ballL
+
+    ; clear the previous position to not clear the erase the ball on draw
     lda #$06
     sta oldBallL
     sta oldBallH
 
+    ; Switch ball trajectory to down
     lda down
     sta ballVert
     rts
 
 
 moveBallDown:
+
+    ; Move ball down screenspace by adding $20
     lda ballL
     clc
     adc #$20
     sta ballL
-    bcs downdown
+    bcs downdown ; carry is set when crossing bounds e0 -> 00
     rts
 downdown:
     inc ballH
+
+    ; Check if bottom of screen is hit $0600-$06ff
     lda #$6
     cmp ballH
     beq collisionBottom
@@ -367,10 +391,13 @@ collisionBottom:
     sec
     sbc #$20
     sta ballL
+
+    ; clear the previous position to not clear the erase the ball on draw
     lda #$06
     sta oldBallL
     sta oldBallH
 
+    ; Switch ball trajectory to up
     lda up
     sta ballVert
     rts
@@ -504,7 +531,7 @@ downLoopL: ; shift the body pieces down
     clc
     adc #$20
     sta paddleLL,x
-    bcs downdownL
+    bcs downdownL ; Crossed down boundary
     jmp clearKey
 
 downdownL:
