@@ -29,6 +29,7 @@ define oldBallL         $32 ; the low byte of the ball pos before a move
 define oldBallH         $33 ; the high byte of the ball pos before a move
 define ballLat          $34 ; the lateral direction the ball is moving
 define ballVert         $35 ; the vertical direction the ball is moving
+define whoScored        $36 ; value to denote who just scored L->1 R->2
 
 ; Paddle Directions
 define movingUpL    #1 ; 0001
@@ -52,6 +53,7 @@ define ASCII_p $70
 define ASCII_l $6c
 
 ; System variables
+define sysRandom  $fe
 define sysLastKey $ff
 
     jsr init
@@ -128,6 +130,7 @@ initScoreBoard:
     sta paddleRScore
     sta scoreToDraw
     sta scoreOffset
+    sta whoScored
 
     lda #$02
     sta scoreScreenPosH
@@ -199,8 +202,7 @@ initBall:
     lda sysRandom
     and #$01 ; mask out lowest bit
     clc
-    adc #$00
-    lda #1
+    adc #$01
     sta ballLat
 
     lda #0
@@ -228,11 +230,11 @@ updateBall:
 
     ; Move ball up 1
     lda ballVert
-    cmp up
+    cmp #1 ; up
     beq shiftUp
 
     ; Move ball down 2
-    cmp down
+    cmp #2 ; down
     beq shiftDown
 
     ; Ball has no vertical movement 0
@@ -249,11 +251,11 @@ checkBallLat:
 
     ; Move ball left 1
     lda ballLat
-    cmp left
+    cmp #1 ; left
     beq shiftLeft
 
     ; Move ball right 2
-    cmp right
+    cmp #2 ; right
     beq shiftRight
 
 shiftLeft:
@@ -297,15 +299,19 @@ pointToPaddle:
 
 incrementScoreL:
     inc paddleLScore
+    lda #1
+    sta whoScored
     jmp resetPaddles
 
 incrementScoreR:
     inc paddleRScore
+    lda #2
+    sta whoScored
 
 resetPaddles:
     jsr clearPixels
     jsr initPaddles
-    jsr initBall
+    jsr resetBall
     jsr drawScore
 
     rts
@@ -316,6 +322,11 @@ clearPixels:
     ldx #0
 
     sta (oldBallL,x)
+
+    ; reset old ball position
+    lda #$06
+    sta oldBallL
+    sta oldBallH
 
     ; erase old pos for paddles
     ldy #5
@@ -330,6 +341,32 @@ clearLoop:
     dey
     bne clearLoop
     rts
+
+resetBall:
+    lda whoScored
+    cmp #2
+    beq resetLeft
+    cmp #1
+    beq resetRight
+
+resetLeft:
+    lda #1
+    sta ballLat
+    jmp continueReset
+
+resetRight:
+    lda #2
+    sta ballLat
+
+continueReset:
+    ; put ball in middle of play
+    lda #$30
+    sta ballL
+    lda #$04
+    sta ballH
+
+    lda #0
+    sta ballVert
 
 moveBallUp:
 
