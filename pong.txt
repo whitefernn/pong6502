@@ -30,6 +30,7 @@ define oldBallH         $33 ; the high byte of the ball pos before a move
 define ballLat          $34 ; the lateral direction the ball is moving
 define ballVert         $35 ; the vertical direction the ball is moving
 define whoScored        $36 ; value to denote who just scored L->1 R->2
+define wallCollision    $37 ; value to denote if ball collided with ceiling/floor
 
 ; Paddle Directions
 define movingUpL    #1 ; 0001
@@ -207,6 +208,7 @@ initBall:
 
     lda #0
     sta ballVert
+    sta wallCollision
 
     rts
 
@@ -220,6 +222,10 @@ loop:
     jmp loop
 
 updateBall:
+    ; reset wall collision
+    lda #0
+    sta wallCollision
+
     ; Save the balls current position
     lda ballL
     sta oldBallL
@@ -242,9 +248,15 @@ updateBall:
 
 shiftUp:
     jsr moveBallUp
+    lda wallCollision
+    cmp #1
+    beq finishBallUpdate
     jmp checkBallLat
 shiftDown:
     jsr moveBallDown
+    lda wallCollision
+    cmp #1
+    beq finishBallUpdate
 
 
 checkBallLat:
@@ -263,6 +275,9 @@ shiftLeft:
     rts
 shiftRight:
     jsr moveBallRight
+    rts
+
+finishBallUpdate:
     rts
 
 moveBallLeft:
@@ -386,6 +401,9 @@ upup:
     beq collisionTop
     rts
 collisionTop:
+    lda #1
+    sta wallCollision
+
     ; undo move and change vert to down
     inc ballH
     lda ballL
@@ -422,6 +440,9 @@ downdown:
     beq collisionBottom
     rts
 collisionBottom:
+    lda #1
+    sta wallCollision
+
     ; undo move and change vert to up
     dec ballH
     lda ballL
@@ -459,7 +480,7 @@ collidedLeftPaddleLow:
     lda ballH
     cmp paddleLH,x
     beq collidedLeftPaddle
-    jmp paddleLCollisionLoop
+    jmp finishLeftCheck
 
 collidedLeftPaddle:
     ; move ball back to prev space
@@ -517,7 +538,7 @@ collidedRightPaddleLow:
     lda ballH
     cmp paddleRH,x
     beq collidedRightPaddle
-    jmp paddleRCollisionLoop
+    jmp finishCollisionCheck
 
 collidedRightPaddle:
     ; move ball back to prev space
