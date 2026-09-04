@@ -1,8 +1,11 @@
 ;  _____
-; |  _  |___  _ _
-; |  ___|   \| ' \
-; |  | |  |  | || |
-; |__|  \___/|_||_|
+; |  _  |___  _ _   __
+; |  ___|   \| ' \ /  \
+; |  | |  |  | || | |  |
+; |__|  \___/|_||_|\__/|
+;                      |
+;                   \__/
+
 
 ; Move left paddle: W S
 ; Move right paddle: P L
@@ -392,6 +395,7 @@ checkScore:
     beq paddleLWon
     cmp paddleRScore
     beq paddleRWon
+    rts
 
 paddleLWon:
     lda #5 ; Green
