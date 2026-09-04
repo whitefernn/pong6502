@@ -23,6 +23,7 @@ define scoreOffset      $26 ; the offset for the score to draw on the screen
 define scoreScreenPosL  $27 ; the low byte for the scores screen pos
 define scoreScreenPosH  $28 ; the high byte for the scroes screen pos
 define colorToDraw      $29 ; the color to draw a pixel of
+define nextColorToDraw  $2a ; the color to switch to on the next draw cycle
 define ballL            $30 ; the low byte for the ball pos
 define ballH            $31 ; the high byte for the ball pos
 define oldBallL         $32 ; the low byte of the ball pos before a move
@@ -328,6 +329,7 @@ resetPaddles:
     jsr initPaddles
     jsr resetBall
     jsr drawScore
+    jsr checkScore
 
     rts
 
@@ -382,6 +384,36 @@ continueReset:
 
     lda #0
     sta ballVert
+    rts
+
+checkScore:
+    lda #$0b
+    cmp paddleLScore
+    beq paddleLWon
+    cmp paddleRScore
+    beq paddleRWon
+
+paddleLWon:
+    lda #5 ; Green
+    sta nextColorToDraw
+    jsr drawLScore
+
+    lda #2 ; Red
+    sta nextColorToDraw
+    jsr drawRScore
+
+    jmp gameOver
+
+paddleRWon:
+    lda #5 ; Green
+    sta nextColorToDraw
+    jsr drawRScore
+
+    lda #2 ; Red
+    sta nextColorToDraw
+    jsr drawLScore
+
+    jmp gameOver
 
 moveBallUp:
 
@@ -878,12 +910,22 @@ drawBall:
     rts
 
 drawScore:
+    lda #1
+    sta nextColorToDraw
+
+    jsr drawLScore
+    jsr drawRScore
+    rts
+
+drawLScore:
     lda paddleLScore
     sta scoreToDraw
     lda #0
     sta scoreOffset
     jsr drawScoreLoop
+    rts
 
+drawRScore:
     lda paddleRScore
     sta scoreToDraw
     lda #15
@@ -915,7 +957,7 @@ resetDigit: ; reset the pixels to black
     jsr 1xx
 
     ; reset color to white
-    lda #1
+    lda nextColorToDraw 
     sta colorToDraw
     rts
 
@@ -1463,10 +1505,12 @@ xdown:
     rts
 
 spinWheels:
-  ldx #0
+  ldx #$5f
 spinloop:
   nop
   nop
   dex
   bne spinloop
   rts
+
+gameOver:
