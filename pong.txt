@@ -100,6 +100,12 @@ initPaddles:
     sta paddleLH,x
     sta paddleRH,x
 
+    ; store deadzone high
+    lda #$02
+    ldx #$0a
+    sta paddleLH,x
+    sta paddleRH,x
+
     ; set left and right paddle low bytes
     lda #$c0
     ldy #$df
@@ -125,6 +131,12 @@ initPaddles:
     ldx #$08
     sta paddleLL,x
     sty paddleRL,x
+    
+    ; store deadzone low
+    lda #$01
+    ldx #$0a
+    sta paddleLL,x
+    sta paddleRL,x
 
     rts
 
@@ -637,12 +649,9 @@ goDownR:
 
 
 upL:
-    ; Clear the bottom of the paddle
-    ldx #6
-    lda #0
-    sta (paddleLBody,x)
 
     ; Store the tail location
+    ldx #6
     lda paddleLBody,x
     ldx #8
     sta paddleLBody,x
@@ -686,20 +695,20 @@ undoUpL:
     cpx #9
     bne undoUpL
 
-    ; redraw the tail
-    lda #1
-    ldx paddleLength
-    dex
-    sta (paddleLBody,x)
+    ; store deadzone
+    lda #$02
+    ldx #$0a
+    sta paddleLH,x
+
+    lda #$01
+    sta paddleLL,x
+
     jmp clearKey
 
 downL:
-    ; Clear the top of the paddle
-    ldx #0
-    lda #0
-    sta (paddleLL,x)
 
     ; Store the head location
+    ldx #0
     lda paddleLL,x
     ldx #8
     sta paddleLBody,x
@@ -754,19 +763,20 @@ undoDownL:
     ldx #1
     sta paddleLL,x
 
-    ; redraw the head
-    lda #1
-    ldx #0
-    sta (paddleLL,x)
+    ; store deadzone
+    lda #$02
+    ldx #$0a
+    sta paddleLH,x
+    
+    lda #$01
+    sta paddleLL,x
+
     jmp clearKey
 
 upR:
-    ; Clear the bottom of the paddle
-    ldx #6
-    lda #0
-    sta (paddleRBody,x)
 
     ; Store the tail location
+    ldx #6
     lda paddleRBody,x
     ldx #8
     sta paddleRBody,x
@@ -810,20 +820,20 @@ undoUpR:
     cpx #9
     bne undoUpR
 
-    ; redraw the tail
-    lda #1
-    ldx paddleLength
-    dex
-    sta (paddleRBody,x)
+    ; store deadzone
+    lda #$02
+    ldx #$0a
+    sta paddleRH,x
+    
+    lda #$01
+    sta paddleRL,x
+
     jmp clearKey
 
 downR:
-    ; Clear the top of the paddle
-    ldx #0
-    lda #0
-    sta (paddleRL,x)
 
     ; Store the head location
+    ldx #0
     lda paddleRL,x
     ldx #8
     sta paddleRBody,x
@@ -878,10 +888,14 @@ undoDownR:
     ldx #1
     sta paddleRL,x
 
-    ; redraw the head
-    lda #1
-    ldx #0
-    sta (paddleRL,x)
+    ; store deadzone
+    lda #$02
+    ldx #$0a
+    sta paddleRH,x
+    
+    lda #$01
+    sta paddleRL,x
+
     jmp clearKey
 clearKey:
     lda #0
@@ -900,6 +914,12 @@ drawLoop:
     inx
     dey
     bne drawLoop
+
+    ; erase head/tail from previous location
+    lda #0
+    sta (paddleLL,x)
+    sta (paddleRL,x)
+
     rts
 
 drawBall:
